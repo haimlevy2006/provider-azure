@@ -19,6 +19,8 @@ package v1alpha3
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2022-06-01/containerservice"
+
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
@@ -59,17 +61,11 @@ type AKSClusterParameters struct {
 	// its ID
 	VnetSubnetIDSelector *xpv1.Selector `json:"vnetSubnetIDSelector,omitempty"`
 
-	// NodeCount is the number of nodes that the cluster will initially be
-	// created with.  This can be scaled over time and defaults to 1.
-	// +kubebuilder:validation:Maximum=100
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	NodeCount *int `json:"nodeCount,omitempty"`
+	// AgentPools Specs
+	AgentPoolProfiles []AgentPoolProfiles `json:"agentPoolProfiles"`
 
-	// NodeVMSize is the name of the worker node VM size, e.g., Standard_B2s,
-	// Standard_F2s_v2, etc.
-	// +optional
-	NodeVMSize string `json:"nodeVMSize"`
+	// NetworkProfile Specs
+	NetworkProfile NetworkProfile `json:"networkProfile"`
 
 	// DNSNamePrefix is the DNS name prefix to use with the hosted Kubernetes
 	// API server FQDN. You will use this to connect to the Kubernetes API when
@@ -81,6 +77,22 @@ type AKSClusterParameters struct {
 	// cluster.
 	// +optional
 	DisableRBAC bool `json:"disableRBAC,omitempty"`
+}
+
+// An AgentPool Specs defines the desired state of an AgentPool.
+type AgentPoolProfiles struct {
+	Name       *string                        `json:"name"`
+	NodeCount  *int32                         `json:"nodeCount"`
+	NodeVMSize *string                        `json:"nodeVMSize"`
+	Mode       containerservice.AgentPoolMode `json:"mode"`
+	Type       containerservice.AgentPoolType `json:"type"`
+	MaxPods    *int32                         `json:"maxPods,omitempty"`
+}
+
+// AKS Cluster Network Profile Specs
+type NetworkProfile struct {
+	NetworkPlugin containerservice.NetworkPlugin `json:"networkPlugin,omitempty"`
+	NetworkPolicy containerservice.NetworkPolicy `json:"networkPolicy,omitempty"`
 }
 
 // An AKSClusterSpec defines the desired state of a AKSCluster.

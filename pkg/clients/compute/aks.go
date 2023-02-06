@@ -23,7 +23,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization"
 	authorizationmgmt "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization"
-	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice"
+	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2022-06-01/containerservice"
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -152,7 +152,7 @@ func (c AggregateClient) DeleteManagedCluster(ctx context.Context, ac *v1alpha3.
 // GetKubeConfig produces a kubeconfig file that configures access to the
 // supplied AKS cluster.
 func (c AggregateClient) GetKubeConfig(ctx context.Context, ac *v1alpha3.AKSCluster) ([]byte, error) {
-	creds, err := c.ManagedClusters.ListClusterAdminCredentials(ctx, ac.Spec.ResourceGroupName, meta.GetExternalName(ac))
+	creds, err := c.ManagedClusters.ListClusterAdminCredentials(ctx, ac.Spec.ResourceGroupName, meta.GetExternalName(ac), "")
 	if err != nil {
 		return nil, err
 	}
@@ -265,9 +265,18 @@ func (c AggregateClient) deleteApplication(ctx context.Context, name string) err
 }
 
 func newManagedCluster(c *v1alpha3.AKSCluster, appID, secret string) containerservice.ManagedCluster {
-	nodeCount := int32(v1alpha3.DefaultNodeCount)
-	if c.Spec.NodeCount != nil {
-		nodeCount = int32(*c.Spec.NodeCount)
+
+	agentPoolProfiles := []containerservice.ManagedClusterAgentPoolProfile{}
+	for _, apProfile := range c.Spec.AgentPoolProfiles {
+		agentPoolProfile := containerservice.ManagedClusterAgentPoolProfile{
+			Name:    apProfile.Name,
+			Count:   apProfile.NodeCount,
+			VMSize:  apProfile.NodeVMSize,
+			Mode:    apProfile.Mode,
+			Type:    apProfile.Type,
+			MaxPods: apProfile.MaxPods,
+		}
+		agentPoolProfiles = append(agentPoolProfiles, agentPoolProfile)
 	}
 
 	p := containerservice.ManagedCluster{
@@ -276,13 +285,7 @@ func newManagedCluster(c *v1alpha3.AKSCluster, appID, secret string) containerse
 		ManagedClusterProperties: &containerservice.ManagedClusterProperties{
 			KubernetesVersion: to.StringPtr(c.Spec.Version),
 			DNSPrefix:         to.StringPtr(c.Spec.DNSNamePrefix),
-			AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
-				{
-					Name:   to.StringPtr(AgentPoolProfileName),
-					Count:  &nodeCount,
-					VMSize: containerservice.VMSizeTypes(c.Spec.NodeVMSize),
-				},
-			},
+			AgentPoolProfiles: &agentPoolProfiles,
 			ServicePrincipalProfile: &containerservice.ManagedClusterServicePrincipalProfile{
 				ClientID: to.StringPtr(appID),
 				Secret:   to.StringPtr(secret),
@@ -291,18 +294,10 @@ func newManagedCluster(c *v1alpha3.AKSCluster, appID, secret string) containerse
 		},
 	}
 
-	if c.Spec.VnetSubnetID != "" {
-		p.ManagedClusterProperties.NetworkProfile = &containerservice.NetworkProfile{NetworkPlugin: containerservice.Azure}
-		p.ManagedClusterProperties.AgentPoolProfiles = &[]containerservice.ManagedClusterAgentPoolProfile{
-			{
-				Name:         to.StringPtr(AgentPoolProfileName),
-				Count:        &nodeCount,
-				VMSize:       containerservice.VMSizeTypes(c.Spec.NodeVMSize),
-				VnetSubnetID: to.StringPtr(c.Spec.VnetSubnetID),
-			},
-		}
+	p.ManagedClusterProperties.NetworkProfile = &containerservice.NetworkProfile{
+		NetworkPlugin: c.Spec.NetworkProfile.NetworkPlugin,
+		NetworkPolicy: c.Spec.NetworkProfile.NetworkPolicy,
 	}
-
 	return p
 }
 

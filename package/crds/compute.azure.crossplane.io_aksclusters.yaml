@@ -56,6 +56,38 @@ spec:
           spec:
             description: An AKSClusterSpec defines the desired state of a AKSCluster.
             properties:
+              agentPoolProfiles:
+                description: AgentPools Specs
+                items:
+                  description: An AgentPool Specs defines the desired state of an
+                    AgentPool.
+                  properties:
+                    maxPods:
+                      format: int32
+                      type: integer
+                    mode:
+                      description: AgentPoolMode enumerates the values for agent pool
+                        mode.
+                      type: string
+                    name:
+                      type: string
+                    nodeCount:
+                      format: int32
+                      type: integer
+                    nodeVMSize:
+                      type: string
+                    type:
+                      description: AgentPoolType enumerates the values for agent pool
+                        type.
+                      type: string
+                  required:
+                  - mode
+                  - name
+                  - nodeCount
+                  - nodeVMSize
+                  - type
+                  type: object
+                type: array
               deletionPolicy:
                 default: Delete
                 description: DeletionPolicy specifies what will happen to the underlying
@@ -79,17 +111,16 @@ spec:
                 description: Location is the Azure location that the cluster will
                   be created in
                 type: string
-              nodeCount:
-                description: NodeCount is the number of nodes that the cluster will
-                  initially be created with.  This can be scaled over time and defaults
-                  to 1.
-                maximum: 100
-                minimum: 0
-                type: integer
-              nodeVMSize:
-                description: NodeVMSize is the name of the worker node VM size, e.g.,
-                  Standard_B2s, Standard_F2s_v2, etc.
-                type: string
+              networkProfile:
+                description: NetworkProfile Specs
+                properties:
+                  networkPlugin:
+                    description: NetworkPlugin enumerates the values for network plugin.
+                    type: string
+                  networkPolicy:
+                    description: NetworkPolicy enumerates the values for network policy.
+                    type: string
+                type: object
               providerConfigRef:
                 default:
                   name: default
@@ -246,7 +277,9 @@ spec:
                 - namespace
                 type: object
             required:
+            - agentPoolProfiles
             - location
+            - networkProfile
             - version
             type: object
           status:
